@@ -1,5 +1,6 @@
 const log = console.log;
 log("시작");
+
 // snake_case
 let newTodoInput = document.querySelector(".new-todo");
 const todoList = document.querySelector(".todo-list");
@@ -8,6 +9,8 @@ const mainEl = document.querySelector(".main");
 const toggleAllButton = document.querySelector(".toggle-all");
 const filters = document.querySelectorAll(".filters li");
 const clearButton = document.querySelector(".clear-completed");
+
+loadLocalStorageData();
 
 function innerValue() {
   let toggle = false;
@@ -37,7 +40,7 @@ newTodoInput.addEventListener("keydown", function (e) {
     `);
 
     todoList.append(item);
-
+    createLocalStorageData();
     displayChange(mainEl, "block");
     newTodoInput.value = "";
 
@@ -105,54 +108,46 @@ delegate(
   }
 );
 
+function forEachCall(node, callback) {
+  Array.prototype.forEach.call(node, callback);
+}
+
 // event delegate pattern // 검색
 mainEl.addEventListener("click", function (e /* callback event or evt */) {
   //e.preventDefault();
   const target = e.target;
-
+  const todoNode = todoList.children;
   if (target.parentNode === filters[0]) {
-    const todoNode = todoList.children;
-    Array.prototype.forEach.call(todoNode, function (node) {
+    forEachCall(todoNode, function (node) {
       const toggleNode = node.querySelector(".toggle");
-      toggleNode.parentNode.style.display = "block";
+      displayChange(toggleNode.parentNode, "block");
     });
-    filters[0].children[0].classList.remove("selected");
-    filters[1].children[0].classList.remove("selected");
-    filters[2].children[0].classList.remove("selected");
-    target.classList.add("selected");
   } else if (target.parentNode === filters[1]) {
-    const todoNode = todoList.children;
-    Array.prototype.forEach.call(todoNode, function (node) {
+    forEachCall(todoNode, function (node) {
       const toggleNode = node.querySelector(".toggle");
+      const toggleParentNode = toggleNode.parentNode;
 
       if (toggleNode.checked) {
-        toggleNode.parentNode.style.display = "none";
+        displayChange(toggleParentNode, "none");
       } else {
-        toggleNode.parentNode.style.display = "block";
+        displayChange(toggleParentNode, "block");
       }
     });
-
-    filters[0].children[0].classList.remove("selected");
-    filters[1].children[0].classList.remove("selected");
-    filters[2].children[0].classList.remove("selected");
-    target.classList.add("selected");
   } else if (target.parentNode === filters[2]) {
-    const todoNode = todoList.children;
-    Array.prototype.forEach.call(todoNode, function (node) {
+    forEachCall(todoNode, function (node) {
       const toggleNode = node.querySelector(".toggle");
+      const toggleParentNode = toggleNode.parentNode;
 
       if (toggleNode.checked) {
-        toggleNode.parentNode.style.display = "block";
+        displayChange(toggleParentNode, "block");
       } else {
-        toggleNode.parentNode.style.display = "none";
+        displayChange(toggleParentNode, "none");
       }
     });
-
-    filters[0].children[0].classList.remove("selected");
-    filters[1].children[0].classList.remove("selected");
-    filters[2].children[0].classList.remove("selected");
-    target.classList.add("selected");
   }
+
+  removeClass("selected");
+  target.classList.add("selected");
 });
 
 toggleAllButton.addEventListener("click", (e) => {
@@ -166,9 +161,11 @@ toggleAllButton.addEventListener("click", (e) => {
     if (checkBool) {
       toggleNode.checked = true;
       todoList.children[i].classList.add("completed");
+      changeLocalStorageDataState(i, toggleNode.checked);
     } else {
       toggleNode.checked = false;
       todoList.children[i].classList.remove("completed");
+      changeLocalStorageDataState(i, toggleNode.checked);
     }
   });
 });
@@ -183,46 +180,56 @@ clearButton.addEventListener("click", function () {
 
   for (let i = recordIndex.length - 1; 0 <= i; i--) {
     todoList.children[recordIndex[i]].remove();
+    removeLocalStorageData(i);
   }
 });
 
-function destroy(element) {
+function removeClass(className) {
+  for (let i = 0; i < 3; i++) {
+    filters[i].children[0].classList.remove(className);
+  }
+}
+
+function destroy(event) {
   let destroybutton = document.querySelectorAll(".destroy");
-  const clickButtonIndex = findIndex(destroybutton, element);
+  const clickButtonIndex = findIndex(destroybutton, event);
   const item = todoList.children[clickButtonIndex];
   if (item) {
     item.remove();
+    removeLocalStorageData(clickButtonIndex);
   }
 
-  if (todoList.children.length === 0) {
+  if (todoList.childElementCount === 0) {
     displayChange(mainEl, "none");
   }
 }
 
-function toggle(element) {
+function toggle(event) {
   let toggleButton = document.querySelectorAll(".toggle");
 
   if (toggleButton.length === 0) {
     return;
   }
 
-  const toggleButtonIndex = findIndex(toggleButton, element);
+  const toggleButtonIndex = findIndex(toggleButton, event);
 
   const toggleItem = toggleButton[toggleButtonIndex];
   if (toggleItem.checked) {
     todoList.children[toggleButtonIndex].classList.add("completed");
+    changeLocalStorageDataState(toggleButtonIndex, toggleItem.checked);
   } else {
     todoList.children[toggleButtonIndex].classList.remove("completed");
+    changeLocalStorageDataState(toggleButtonIndex, toggleItem.checked);
   }
 
   //log('toggleItem', toggleButtonIndex, toggleItem.checked);
 }
 
-function findIndex(node, element) {
+function findIndex(node, event) {
   const index = Array.prototype.reduce.call(
     node,
     (acc, curr, index) => {
-      if (element.target === curr) {
+      if (event.target === curr) {
         return index;
       } else {
         return acc;
@@ -268,4 +275,58 @@ function stringToNode(str) {
   wrap.innerHTML = str;
 
   return wrap.children[0];
+}
+
+function loadLocalStorageData() {
+  let data = localStorage.getItem("todos-vanilla-es6");
+  let parseData = JSON.parse(data) || [];
+  parseData.forEach((v) => {
+    //log(v, i);
+    const item = stringToNode(`
+    <li class='${v.completed ? "completed" : ""}'>
+      <div class="view">
+        <input class="toggle" type="checkbox">
+        <label>${v.title}</label>
+        <button class="destroy btn-x"></button>
+      </div>
+    </li>
+    `);
+
+    todoList.append(item);
+  });
+  if (todoList.childElementCount) {
+    displayChange(mainEl, "block");
+  }
+}
+
+function createLocalStorageData() {
+  let data = JSON.parse(localStorage.getItem("todos-vanilla-es6")) || [];
+  data.push({
+    id: "-",
+    title: newTodoInput.value,
+    completed: false,
+  });
+  localStorage.setItem("todos-vanilla-es6", JSON.stringify(data));
+}
+
+function removeLocalStorageData(index) {
+  let data = localStorage.getItem("todos-vanilla-es6");
+  let parseData = JSON.parse(data);
+  //delete parseData[index];
+  parseData.splice(index, 1);
+
+  //   let newParseData = parseData.filter((v) => {
+  //     return v !== undefined;
+  //   });
+
+  //localStorage.removeItem('todos-vanilla-es6');
+  localStorage.setItem("todos-vanilla-es6", JSON.stringify(parseData));
+}
+
+function changeLocalStorageDataState(index, state) {
+  let data = localStorage.getItem("todos-vanilla-es6");
+  let parseData = JSON.parse(data);
+  parseData[index].completed = state;
+  //localStorage.removeItem('todos-vanilla-es6');
+  localStorage.setItem("todos-vanilla-es6", JSON.stringify(parseData));
 }
