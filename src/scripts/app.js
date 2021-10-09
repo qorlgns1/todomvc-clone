@@ -1,6 +1,17 @@
 const log = console.log;
 log("시작");
 
+//EventEmitter Test
+const EventEmitter = require("events").EventEmitter;
+const eeInstance = new EventEmitter();
+//console.log("eeInstance", eeInstance);
+
+eeInstance.on("qorlgns", () => {
+  console.log("에미터 테스트");
+});
+
+eeInstance.emit("qorlgns");
+
 // snake_case
 let newTodoInput = document.querySelector(".new-todo");
 const todoList = document.querySelector(".todo-list");
@@ -148,6 +159,8 @@ mainEl.addEventListener("click", function (e /* callback event or evt */) {
       const toggleNode = node.querySelector(".toggle");
       displayChange(toggleNode.parentNode, "block");
     });
+    removeClass("selected");
+    target.classList.add("selected");
   } else if (target.parentNode === filters[1]) {
     forEachCall(todoNode, function (node) {
       const toggleNode = node.querySelector(".toggle");
@@ -159,6 +172,8 @@ mainEl.addEventListener("click", function (e /* callback event or evt */) {
         displayChange(toggleParentNode, "block");
       }
     });
+    removeClass("selected");
+    target.classList.add("selected");
   } else if (target.parentNode === filters[2]) {
     forEachCall(todoNode, function (node) {
       const toggleNode = node.querySelector(".toggle");
@@ -170,10 +185,9 @@ mainEl.addEventListener("click", function (e /* callback event or evt */) {
         displayChange(toggleParentNode, "none");
       }
     });
+    removeClass("selected");
+    target.classList.add("selected");
   }
-
-  removeClass("selected");
-  target.classList.add("selected");
 });
 
 toggleAllButton.addEventListener("click", () => {
