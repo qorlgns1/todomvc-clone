@@ -9,19 +9,45 @@ const mainEl = document.querySelector(".main");
 const toggleAllButton = document.querySelector(".toggle-all");
 const filters = document.querySelectorAll(".filters li");
 const clearButton = document.querySelector(".clear-completed");
+const itemsLeft = getItemsLeft();
 
 loadLocalStorageData();
 
-function innerValue() {
-  let toggle = false;
+function getItemsLeft() {
+  let count = 0;
 
-  return function () {
-    toggle = !toggle;
-    return toggle;
+  function getCount(count) {
+    if (count <= 0) {
+      count = 0;
+    }
+    return count + " items left";
+  }
+
+  return {
+    increase: function () {
+      if (count < 0) {
+        count = 0;
+      }
+      count++;
+      return getCount(count);
+    },
+    decrease: function () {
+      count--;
+      return getCount(count);
+    },
+    reset: function () {
+      count = 0;
+      return getCount(count);
+    },
+    setCount: function (newCount) {
+      count = newCount;
+      return getCount(count);
+    },
+    show: function () {
+      return getCount(count);
+    },
   };
 }
-
-const getInnerValue = innerValue();
 
 newTodoInput.addEventListener("keydown", function (e) {
   //log(e.target.value);
@@ -150,22 +176,31 @@ mainEl.addEventListener("click", function (e /* callback event or evt */) {
   target.classList.add("selected");
 });
 
-toggleAllButton.addEventListener("click", (e) => {
-  e.preventDefault();
+toggleAllButton.addEventListener("click", () => {
+  //e.preventDefault();
 
   const todoNode = todoList.children;
-  const checkBool = getInnerValue();
+  const checkBool = toggleAllButton.checked;
+
+  //count 클로저 값 변경
+  const count = getTotalLocalStorageCount();
+  if (checkBool) {
+    itemsLeft.setCount(count);
+  } else {
+    itemsLeft.setCount(0);
+  }
+
   Array.prototype.forEach.call(todoNode, function (node, i) {
     const toggleNode = node.querySelector(".toggle");
 
     if (checkBool) {
-      toggleNode.checked = true;
+      toggleNode.checked = checkBool;
       todoList.children[i].classList.add("completed");
-      changeLocalStorageDataState(i, toggleNode.checked);
+      changeLocalStorageDataState(i, checkBool);
     } else {
-      toggleNode.checked = false;
+      toggleNode.checked = checkBool;
       todoList.children[i].classList.remove("completed");
-      changeLocalStorageDataState(i, toggleNode.checked);
+      changeLocalStorageDataState(i, checkBool);
     }
   });
 });
@@ -182,6 +217,8 @@ clearButton.addEventListener("click", function () {
     todoList.children[recordIndex[i]].remove();
     removeLocalStorageData(i);
   }
+
+  closeMainEl();
 });
 
 function removeClass(className) {
@@ -199,8 +236,14 @@ function destroy(event) {
     removeLocalStorageData(clickButtonIndex);
   }
 
+  closeMainEl();
+}
+
+function closeMainEl() {
   if (todoList.childElementCount === 0) {
+    itemsLeft.reset();
     displayChange(mainEl, "none");
+    toggleAllButton.checked = false;
   }
 }
 
@@ -221,8 +264,6 @@ function toggle(event) {
     todoList.children[toggleButtonIndex].classList.remove("completed");
     changeLocalStorageDataState(toggleButtonIndex, toggleItem.checked);
   }
-
-  //log('toggleItem', toggleButtonIndex, toggleItem.checked);
 }
 
 function findIndex(node, event) {
@@ -293,7 +334,14 @@ function loadLocalStorageData() {
     `);
 
     todoList.append(item);
+
+    if (!v.completed) {
+      itemsLeft.increase();
+    }
   });
+
+  showItemsLeft();
+
   if (todoList.childElementCount) {
     displayChange(mainEl, "block");
   }
@@ -306,20 +354,17 @@ function createLocalStorageData() {
     title: newTodoInput.value,
     completed: false,
   });
+
   localStorage.setItem("todos-vanilla-es6", JSON.stringify(data));
+
+  itemsLeft.increase();
+  showItemsLeft();
 }
 
 function removeLocalStorageData(index) {
   let data = localStorage.getItem("todos-vanilla-es6");
   let parseData = JSON.parse(data);
-  //delete parseData[index];
   parseData.splice(index, 1);
-
-  //   let newParseData = parseData.filter((v) => {
-  //     return v !== undefined;
-  //   });
-
-  //localStorage.removeItem('todos-vanilla-es6');
   localStorage.setItem("todos-vanilla-es6", JSON.stringify(parseData));
 }
 
@@ -327,6 +372,29 @@ function changeLocalStorageDataState(index, state) {
   let data = localStorage.getItem("todos-vanilla-es6");
   let parseData = JSON.parse(data);
   parseData[index].completed = state;
+
+  if (state) {
+    itemsLeft.decrease();
+    showItemsLeft();
+  } else {
+    itemsLeft.increase();
+    showItemsLeft();
+  }
+
+  closeMainEl();
+
   //localStorage.removeItem('todos-vanilla-es6');
   localStorage.setItem("todos-vanilla-es6", JSON.stringify(parseData));
+}
+
+function showItemsLeft() {
+  let count = document.querySelector(".todo-count");
+  count.innerHTML = itemsLeft.show();
+}
+
+function getTotalLocalStorageCount() {
+  let data = localStorage.getItem("todos-vanilla-es6");
+  let parseData = JSON.parse(data);
+
+  return parseData.length;
 }
